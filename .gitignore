@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Secrets — never commit these
+.env
+
+# Generated outputs — no need to version these
+output/
+tmp/
+
+# Job descriptions — optional, exclude if they contain private info
+# input/jobs/
+
+# IDE and tools
+.vscode/
+.idea/
+*.swp
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
