@@ -34,13 +34,20 @@ def rewrite_cv(
     structure: CVStructure,
     jd_text: str,
     company: str,
+    *,
+    provider: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
 ) -> RewriteResult:
     user_prompt = build_user_prompt(structure, jd_text)
 
     print(f"  [rewrite] Sending {len(structure.non_empty_slots())} non-empty slots"
-          f" via {_provider_label()}...")
+          f" via {_provider_label(provider, model)}...")
 
-    response, raw_content = _call_with_retry(SYSTEM_PROMPT, user_prompt)
+    response, raw_content = _call_with_retry(
+        SYSTEM_PROMPT, user_prompt,
+        provider=provider, api_key=api_key, model=model,
+    )
     token_counter.add(response)
 
     # --- Parse ---------------------------------------------------------------
@@ -89,10 +96,17 @@ def _call_with_retry(
     system: str,
     user: str,
     retries: int = 1,
+    *,
+    provider: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
 ) -> tuple[llm.LLMResponse, str]:
     for attempt in range(retries + 1):
         try:
-            response = llm.complete(system, user)
+            response = llm.complete(
+                system, user,
+                provider=provider, api_key=api_key, model=model,
+            )
             return response, response.content
         except Exception as exc:
             if attempt < retries:
@@ -101,15 +115,16 @@ def _call_with_retry(
                 raise
 
 
-def _provider_label() -> str:
+def _provider_label(provider: str | None = None, model: str | None = None) -> str:
     from config import LLM_PROVIDER, OPENAI_MODEL, ANTHROPIC_MODEL, GEMINI_MODEL
+    resolved_provider = provider or LLM_PROVIDER
     model_map = {
         "openai":    OPENAI_MODEL,
         "anthropic": ANTHROPIC_MODEL,
         "gemini":    GEMINI_MODEL,
     }
-    model = model_map.get(LLM_PROVIDER, "?")
-    return f"{LLM_PROVIDER}/{model}"
+    resolved_model = model or model_map.get(resolved_provider, "?")
+    return f"{resolved_provider}/{resolved_model}"
 
 
 def _ts() -> str:

@@ -11,3 +11,9 @@ google-generativeai>=0.8.0
 
 # Token counting (used by tiktoken internally, optional)
 tiktoken>=0.7.0
+
+# Web UI (Gradio)
+gradio>=4.0.0
+
+# Build tool (developer only — not needed by end users)
+pyinstaller>=6.0.0

@@ -16,6 +16,10 @@ tmp/
 # Job descriptions — optional, exclude if they contain private info
 # input/jobs/
 
+# User's personal CV and upload metadata (never commit personal data)
+input/cv_user.docx
+input/cv_meta.json
+
 # IDE and tools
 .vscode/
 .idea/

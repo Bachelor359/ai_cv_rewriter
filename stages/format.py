@@ -45,13 +45,17 @@ def format_cv(
     structure: CVStructure,
     result: RewriteResult,
     company: str,
+    *,
+    cv_source: Path | None = None,
 ) -> Path:
     """
     Write a new DOCX to output/cv_{company}.docx with rewritten slot text.
     Returns the output path.
+
+    cv_source overrides the default CV_PATH (used by Gradio UI to pass cv_user.docx).
     """
     output_path = OUTPUT_DIR / f"cv_{company}.docx"
-    shutil.copy2(CV_PATH, output_path)
+    shutil.copy2(cv_source or CV_PATH, output_path)
 
     doc = Document(str(output_path))
 

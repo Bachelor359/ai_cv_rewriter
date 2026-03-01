@@ -1,15 +1,23 @@
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).parent
+# When frozen by PyInstaller, use the exe's directory so that output/, tmp/,
+# and input/ are created next to the executable (not inside the temp bundle).
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).parent
 INPUT_DIR = BASE_DIR / "input"
 JOBS_DIR = INPUT_DIR / "jobs"
 OUTPUT_DIR = BASE_DIR / "output"
 TMP_DIR = BASE_DIR / "tmp"
 CV_PATH = INPUT_DIR / "cv.docx"
+CV_USER_PATH = INPUT_DIR / "cv_user.docx"   # user's personal CV (gitignored)
+CV_META_PATH = INPUT_DIR / "cv_meta.json"   # upload timestamp metadata (gitignored)
 
 # --- LLM provider selection ------------------------------------------------
 # Valid values: openai | anthropic | gemini

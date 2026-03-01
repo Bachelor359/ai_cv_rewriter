@@ -35,20 +35,32 @@ class LLMResponse:
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def complete(system: str, user: str) -> LLMResponse:
-    """Route to the configured LLM provider and return a normalised response."""
+def complete(
+    system: str,
+    user: str,
+    *,
+    provider: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> LLMResponse:
+    """Route to the configured LLM provider and return a normalised response.
+
+    provider/api_key/model override .env config when supplied (used by Gradio UI).
+    Omit them (or pass None) to fall back to config — CLI behaviour unchanged.
+    """
     from config import LLM_PROVIDER
+    resolved_provider = provider or LLM_PROVIDER
     providers = {
         "openai":    _openai_complete,
         "anthropic": _anthropic_complete,
         "gemini":    _gemini_complete,
     }
-    if LLM_PROVIDER not in providers:
+    if resolved_provider not in providers:
         raise ValueError(
-            f"Unknown LLM_PROVIDER: '{LLM_PROVIDER}'. "
+            f"Unknown LLM provider: '{resolved_provider}'. "
             f"Valid options: {', '.join(providers)}"
         )
-    return providers[LLM_PROVIDER](system, user)
+    return providers[resolved_provider](system, user, api_key=api_key, model=model)
 
 
 # ---------------------------------------------------------------------------
@@ -66,17 +78,25 @@ def _is_reasoning_model(model: str) -> bool:
     return any(model == p or model.startswith(p + "-") for p in _OPENAI_REASONING_PREFIXES)
 
 
-def _openai_complete(system: str, user: str) -> LLMResponse:
+def _openai_complete(
+    system: str,
+    user: str,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> LLMResponse:
     from openai import OpenAI
     from config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_TEMPERATURE
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    resolved_key   = api_key or OPENAI_API_KEY
+    resolved_model = model   or OPENAI_MODEL
+    client = OpenAI(api_key=resolved_key)
 
-    if _is_reasoning_model(OPENAI_MODEL):
+    if _is_reasoning_model(resolved_model):
         # Reasoning models: no temperature, no response_format.
         # Instruct JSON output via the prompt only (system prompt already does this).
         response = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=resolved_model,
             max_completion_tokens=8192,
             messages=[
                 {"role": "system", "content": system},
@@ -85,7 +105,7 @@ def _openai_complete(system: str, user: str) -> LLMResponse:
         )
     else:
         response = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=resolved_model,
             temperature=OPENAI_TEMPERATURE,
             response_format={"type": "json_object"},
             messages=[
@@ -106,16 +126,24 @@ def _openai_complete(system: str, user: str) -> LLMResponse:
 # Anthropic (Claude)
 # ---------------------------------------------------------------------------
 
-def _anthropic_complete(system: str, user: str) -> LLMResponse:
+def _anthropic_complete(
+    system: str,
+    user: str,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> LLMResponse:
     import anthropic
     from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL, OPENAI_TEMPERATURE
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    resolved_key   = api_key or ANTHROPIC_API_KEY
+    resolved_model = model   or ANTHROPIC_MODEL
+    client = anthropic.Anthropic(api_key=resolved_key)
 
     # Prefill the assistant turn with "{" to force the model to start a JSON
     # object immediately — no preamble, no markdown fences.
     response = client.messages.create(
-        model=ANTHROPIC_MODEL,
+        model=resolved_model,
         max_tokens=4096,
         temperature=OPENAI_TEMPERATURE,
         system=system,
@@ -139,20 +167,28 @@ def _anthropic_complete(system: str, user: str) -> LLMResponse:
 # Google Gemini
 # ---------------------------------------------------------------------------
 
-def _gemini_complete(system: str, user: str) -> LLMResponse:
+def _gemini_complete(
+    system: str,
+    user: str,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> LLMResponse:
     import google.generativeai as genai
     from config import GEMINI_API_KEY, GEMINI_MODEL, OPENAI_TEMPERATURE
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
+    resolved_key   = api_key or GEMINI_API_KEY
+    resolved_model = model   or GEMINI_MODEL
+    genai.configure(api_key=resolved_key)
+    gmodel = genai.GenerativeModel(
+        model_name=resolved_model,
         system_instruction=system,
         generation_config=genai.types.GenerationConfig(
             response_mime_type="application/json",
             temperature=OPENAI_TEMPERATURE,
         ),
     )
-    response = model.generate_content(user)
+    response = gmodel.generate_content(user)
     meta = response.usage_metadata
 
     return LLMResponse(
